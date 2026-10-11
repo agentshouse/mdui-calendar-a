@@ -1,0 +1,614 @@
+import type { CalendarEvent } from '@ilamy/types'
+import { Button } from '@ilamy/ui/components/button'
+import { Checkbox } from '@ilamy/ui/components/checkbox'
+import { ColorPicker } from '@ilamy/ui/components/color-picker'
+import { DialogFooter } from '@ilamy/ui/components/dialog'
+import { Input } from '@ilamy/ui/components/input'
+import { Label } from '@ilamy/ui/components/label'
+import { ScrollArea } from '@ilamy/ui/components/scroll-area'
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from '@ilamy/ui/components/select'
+import { Textarea } from '@ilamy/ui/components/textarea'
+import dayjs from '@ilamy/utils/dayjs'
+import { readableTextColor } from '@ilamy/utils/helpers'
+import type React from 'react'
+import { useEffect, useState } from 'react'
+import {
+	EventFormSlot,
+	EventMutationScopeSlot,
+} from '@/features/calendar/components/calendar-slots'
+import { DatePicker } from '@/features/calendar/components/date-picker'
+import { TimePicker } from '@/features/calendar/components/time-picker'
+import { useEffectiveBusinessHours } from '@/features/calendar/hooks/use-effective-business-hours'
+import { useScopedEventMutation } from '@/features/calendar/hooks/use-scoped-event-mutation'
+import { useSmartCalendarContext } from '@/features/calendar/hooks/use-smart-calendar-context'
+import { isBusinessDay } from '@/features/calendar/utils/business-hours'
+import {
+	buildDateTime,
+	buildEndDateTime,
+	getTimeConstraints,
+} from '@/features/calendar/utils/event-form-utils'
+
+// Default event color, kept as a Tailwind class-pair (theme-aware) like before.
+const DEFAULT_EVENT_COLOR = 'bg-blue-100 text-blue-800'
+
+// Curated swatches: the original Tailwind class-pairs (theme-aware). The picker
+// additionally allows any custom color via its native input + hex field.
+const EVENT_COLOR_SWATCHES = [
+	{ value: DEFAULT_EVENT_COLOR, label: 'Blue' },
+	{ value: 'bg-green-100 text-green-800', label: 'Green' },
+	{ value: 'bg-purple-100 text-purple-800', label: 'Purple' },
+	{ value: 'bg-red-100 text-red-800', label: 'Red' },
+	{ value: 'bg-yellow-100 text-yellow-800', label: 'Yellow' },
+	{ value: 'bg-pink-100 text-pink-800', label: 'Pink' },
+	{ value: 'bg-indigo-100 text-indigo-800', label: 'Indigo' },
+	{ value: 'bg-amber-100 text-amber-800', label: 'Amber' },
+	{ value: 'bg-emerald-100 text-emerald-800', label: 'Emerald' },
+	{ value: 'bg-sky-100 text-sky-800', label: 'Sky' },
+	{ value: 'bg-violet-100 text-violet-800', label: 'Violet' },
+	{ value: 'bg-rose-100 text-rose-800', label: 'Rose' },
+	{ value: 'bg-teal-100 text-teal-800', label: 'Teal' },
+	{ value: 'bg-orange-100 text-orange-800', label: 'Orange' },
+]
+
+const HEX_COLOR_PATTERN = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/
+
+// The picker's value is whatever the event already stored (a Tailwind class-pair
+// from a swatch, or a hex). Prefer a hex `backgroundColor`, then `color`, else
+// the default class-pair.
+const resolveInitialColor = (
+	backgroundColor: string | undefined,
+	color: string | undefined
+): string => {
+	if (backgroundColor && HEX_COLOR_PATTERN.test(backgroundColor)) {
+		return backgroundColor
+	}
+	return color ?? DEFAULT_EVENT_COLOR
+}
+
+// A swatch stores a Tailwind class-pair in `color`; a custom hex stores
+// `backgroundColor` + a readable text `color`.
+const buildColorFields = (
+	color: string
+): Pick<CalendarEvent, 'backgroundColor' | 'color'> => {
+	if (HEX_COLOR_PATTERN.test(color)) {
+		return { backgroundColor: color, color: readableTextColor(color) }
+	}
+	return { backgroundColor: undefined, color }
+}
+
+// Write the new color only when the user picked one (or the event had none).
+// Otherwise preserve the event's original color (legacy class-pair or hex) as-is.
+const resolveColorFields = ({
+	colorChanged,
+	hadInitialColor,
+	selectedColor,
+	initialBackgroundColor,
+	initialColor,
+}: {
+	colorChanged: boolean
+	hadInitialColor: boolean
+	selectedColor: string
+	initialBackgroundColor: string | undefined
+	initialColor: string | undefined
+}): Pick<CalendarEvent, 'backgroundColor' | 'color'> => {
+	if (colorChanged || !hadInitialColor) {
+		return buildColorFields(selectedColor)
+	}
+	return { backgroundColor: initialBackgroundColor, color: initialColor }
+}
+
+type TextFieldName = 'title' | 'description' | 'location'
+
+interface EventFormTextFieldProps {
+	name: TextFieldName
+	label: string
+	placeholder: string
+	value: string
+	required?: boolean
+	// Render a multi-line textarea (e.g. for the description) instead of an input.
+	multiline?: boolean
+	onChange: (
+		e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+	) => void
+}
+
+// Shared title / description / location inputs (must live outside EventForm to keep focus).
+const EventFormTextField = ({
+	name,
+	label,
+	placeholder,
+	value,
+	required = false,
+	multiline = false,
+	onChange,
+}: EventFormTextFieldProps) => (
+	<div className="grid gap-1 sm:gap-2">
+		<Label className="text-xs sm:text-sm" htmlFor={name}>
+			{label}
+		</Label>
+		{multiline ? (
+			<Textarea
+				className="min-h-16 text-sm"
+				id={name}
+				name={name}
+				onChange={onChange}
+				placeholder={placeholder}
+				required={required}
+				value={value}
+			/>
+		) : (
+			<Input
+				className="h-8 text-sm sm:h-9"
+				id={name}
+				name={name}
+				onChange={onChange}
+				placeholder={placeholder}
+				required={required}
+				value={value}
+			/>
+		)}
+	</div>
+)
+
+export interface EventFormProps {
+	open?: boolean
+	selectedEvent?: CalendarEvent | null
+	onAdd?: (event: CalendarEvent) => void
+	onUpdate?: (event: CalendarEvent) => void
+	onDelete?: (event: CalendarEvent) => void
+	onClose: () => void
+}
+
+export const EventForm: React.FC<EventFormProps> = ({
+	selectedEvent,
+	onClose,
+	onUpdate,
+	onDelete,
+	onAdd,
+}) => {
+	const {
+		dialogState,
+		openEditDialog,
+		openDeleteDialog,
+		closeDialog,
+		handleConfirm,
+	} = useScopedEventMutation(onClose)
+
+	const { t, timeFormat, getEventManager, resources } = useSmartCalendarContext(
+		(context) => ({
+			t: context.t,
+			timeFormat: context.timeFormat,
+			getEventManager: context.getEventManager,
+			resources: context.resources ?? [],
+		})
+	)
+	// The selected event's fields, or the new-event defaults.
+	const {
+		id: selectedEventId,
+		resourceId,
+		resourceIds,
+		start = dayjs(),
+		end = dayjs().add(1, 'hour'),
+		allDay: initialAllDay = false,
+		color: initialColor,
+		backgroundColor: initialBackgroundColor,
+		title: initialTitle = '',
+		description: initialDescription = '',
+		location: initialLocation = '',
+	} = selectedEvent ?? {}
+
+	const hasResources = resources.length > 0
+	const initialSelectedResourceId = resourceId ?? resourceIds?.at(0)
+	const showResourceSelector =
+		hasResources && initialSelectedResourceId === undefined
+
+	const [selectedResourceId, setSelectedResourceId] = useState<
+		string | number | undefined
+	>(initialSelectedResourceId)
+
+	const effectiveResourceId = hasResources ? selectedResourceId : resourceId
+
+	const effectiveBusinessHours = useEffectiveBusinessHours(effectiveResourceId)
+
+	// Whether a plugin owns this event (gates the scoped edit/delete flow)
+	const eventIsOwned = Boolean(selectedEvent && getEventManager(selectedEvent))
+
+	// An all-day `end` is STORED exclusively, as the midnight after the last day
+	// the event covers (#248), but the picker shows the user that last day.
+	// `buildEndDateTime` converts back on save. An end that is not on a midnight
+	// boundary predates this and is already inclusive, so it is shown untouched.
+	const endsOnMidnight = end.isSame(end.startOf('day'))
+	const lastCoveredDay =
+		initialAllDay && endsOnMidnight ? end.subtract(1, 'day') : end
+
+	// Form state
+	const [startDate, setStartDate] = useState(start.toDate())
+	const [endDate, setEndDate] = useState(lastCoveredDay.toDate())
+	const [isAllDay, setIsAllDay] = useState(initialAllDay)
+	const [selectedColor, setSelectedColor] = useState(
+		resolveInitialColor(initialBackgroundColor, initialColor)
+	)
+	// Existing events keep their original color (including legacy Tailwind
+	// class-pairs) untouched unless the user actually picks a new one.
+	const [colorPicked, setColorPicked] = useState(false)
+	const hadInitialColor = Boolean(initialColor || initialBackgroundColor)
+
+	const handleColorChange = (color: string) => {
+		setSelectedColor(color)
+		setColorPicked(true)
+	}
+
+	// Time state
+	const [startTime, setStartTime] = useState(start.format('HH:mm'))
+	const [endTime, setEndTime] = useState(end.format('HH:mm'))
+
+	// Initialize form values from selected event or defaults
+	const [formValues, setFormValues] = useState({
+		title: initialTitle,
+		description: initialDescription,
+		location: initialLocation,
+	})
+
+	// Generic draft of plugin-contributed fields (e.g. recurrence's rrule).
+	// Plugins push their fields through the event-form slot's `onChange`.
+	const [pluginUpdates, setPluginUpdates] = useState<Partial<CalendarEvent>>({})
+
+	// The event as the plugin editors see it: the selected event plus any
+	// in-progress plugin fields, so their inputs stay controlled.
+	const draftEvent = { ...selectedEvent, ...pluginUpdates } as CalendarEvent
+	const mergePluginUpdates = (updates: Partial<CalendarEvent>) =>
+		setPluginUpdates((prev) => ({ ...prev, ...updates }))
+
+	// Create wrapper functions to fix TypeScript errors with DatePicker
+	const handleStartDateChange = (date: Date | undefined) => {
+		if (!date) return
+		setStartDate(date)
+		if (dayjs(date).isAfter(dayjs(endDate))) {
+			setEndDate(date)
+		}
+	}
+
+	const handleEndDateChange = (date: Date | undefined) => {
+		if (!date) return
+		setEndDate(date)
+		if (date && dayjs(date).isBefore(dayjs(startDate))) {
+			setStartDate(date)
+		}
+	}
+
+	/**
+	 * The End Date input means different things in the two modes: a boundary for a
+	 * timed event, the last day COVERED for an all-day one. Switching to all-day
+	 * therefore has to reinterpret it, and a midnight end covers through the
+	 * previous day. Without this step back, clicking a month cell (whose range
+	 * ends at the next midnight) and ticking All day saved a two-day event for a
+	 * single day (#248).
+	 */
+	const handleAllDayChange = (checked: boolean) => {
+		setIsAllDay(checked)
+		if (!(checked && endTime === '00:00')) {
+			return
+		}
+		// Only when the end sits on a LATER day. A same-day midnight end means a
+		// zero-length event, and stepping that back would put the end before the
+		// start, saving another zero-length event where a one-day one was asked for.
+		setEndDate((previous) => {
+			const endsOnALaterDay = dayjs(previous).isAfter(dayjs(startDate), 'day')
+			return endsOnALaterDay
+				? dayjs(previous).subtract(1, 'day').toDate()
+				: previous
+		})
+	}
+
+	// Time validation handlers - only validate when dates are the same
+	const handleStartTimeChange = (time: string) => {
+		setStartTime(time)
+		// Only validate if same day
+		if (dayjs(startDate).isSame(dayjs(endDate), 'day') && time > endTime) {
+			setEndTime(time)
+		}
+	}
+
+	const handleEndTimeChange = (time: string) => {
+		setEndTime(time)
+		// Only validate if same day
+		if (dayjs(startDate).isSame(dayjs(endDate), 'day') && time < startTime) {
+			setStartTime(time)
+		}
+	}
+
+	// Update form values when input changes
+	const handleInputChange = (
+		e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+	) => {
+		const { name, value } = e.target
+		setFormValues((prev) => ({ ...prev, [name]: value }))
+	}
+
+	useEffect(() => {
+		// Reset end time when all day is toggled to on
+		if (isAllDay) {
+			setEndTime('23:59')
+		}
+	}, [isAllDay])
+
+	const resolveResourceId = (value: string): string | number => {
+		const resource = resources.find((item) => String(item.id) === value)
+		return resource?.id ?? value
+	}
+
+	const isResourceMissing =
+		showResourceSelector && selectedResourceId === undefined
+
+	const handleSubmit = (e: React.FormEvent) => {
+		e.preventDefault()
+
+		if (isResourceMissing) {
+			return
+		}
+
+		const startDateTime = buildDateTime(startDate, startTime, isAllDay)
+		const endDateTime = buildEndDateTime(endDate, endTime, isAllDay)
+
+		// Only write the new hex model when the user picked a color. Otherwise an
+		// existing event keeps its original color (legacy class-pair included) so
+		// editing other fields never rewrites its appearance.
+		const colorFields = resolveColorFields({
+			colorChanged: colorPicked,
+			hadInitialColor,
+			selectedColor,
+			initialBackgroundColor,
+			initialColor,
+		})
+
+		const eventData: CalendarEvent = {
+			id: selectedEventId || dayjs().format('YYYYMMDDHHmmss'),
+			title: formValues.title,
+			start: startDateTime,
+			end: endDateTime,
+			resourceId: effectiveResourceId,
+			description: formValues.description,
+			location: formValues.location,
+			allDay: isAllDay,
+			...colorFields,
+			...pluginUpdates,
+		}
+
+		if (selectedEvent?.id && eventIsOwned) {
+			openEditDialog(selectedEvent, {
+				title: formValues.title,
+				start: startDateTime,
+				end: endDateTime,
+				resourceId: effectiveResourceId,
+				description: formValues.description,
+				location: formValues.location,
+				allDay: isAllDay,
+				color: selectedColor,
+				...pluginUpdates,
+			})
+			return
+		}
+
+		if (selectedEventId) {
+			onUpdate?.(eventData)
+		} else {
+			onAdd?.(eventData)
+		}
+		onClose()
+	}
+
+	const handleDelete = () => {
+		if (!selectedEvent?.id) {
+			return
+		}
+		// A plugin owns this event (e.g. recurring): let it gather the delete
+		// scope via its dialog; don't close the form yet.
+		if (eventIsOwned) {
+			openDeleteDialog(selectedEvent)
+			return
+		}
+		onDelete?.(selectedEvent)
+		onClose()
+	}
+
+	let disabledDateMatcher: ((date: Date) => boolean) | undefined
+	if (effectiveBusinessHours) {
+		disabledDateMatcher = (date) =>
+			!isBusinessDay(dayjs(date), effectiveBusinessHours)
+	}
+
+	const startConstraints = getTimeConstraints(startDate, effectiveBusinessHours)
+	const endConstraints = getTimeConstraints(endDate, effectiveBusinessHours)
+
+	const dateFields = [
+		['startDate', startDate, handleStartDateChange],
+		['endDate', endDate, handleEndDateChange],
+	] as const
+
+	const timeFields = [
+		[
+			'startTime',
+			'start-time',
+			startTime,
+			handleStartTimeChange,
+			startConstraints,
+		],
+		['endTime', 'end-time', endTime, handleEndTimeChange, endConstraints],
+	] as const
+
+	const resourceSelectValue = selectedResourceId?.toString()
+
+	return (
+		<>
+			<form className="flex flex-col flex-1 min-h-0" onSubmit={handleSubmit}>
+				<ScrollArea className="flex-1 min-h-0">
+					<div className="grid gap-3 sm:gap-4 p-1">
+						<EventFormTextField
+							label={t('title')}
+							name="title"
+							onChange={handleInputChange}
+							placeholder={t('eventTitlePlaceholder')}
+							required
+							value={formValues.title}
+						/>
+						<EventFormTextField
+							label={t('description')}
+							multiline
+							name="description"
+							onChange={handleInputChange}
+							placeholder={t('eventDescriptionPlaceholder')}
+							value={formValues.description}
+						/>
+
+						{showResourceSelector && (
+							<div className="grid gap-1 sm:gap-2">
+								<Label className="text-xs sm:text-sm" htmlFor="resource">
+									{t('resource')}
+								</Label>
+								<Select
+									onValueChange={(value) =>
+										setSelectedResourceId(resolveResourceId(value))
+									}
+									value={resourceSelectValue}
+								>
+									<SelectTrigger
+										className="h-8 text-sm sm:h-9"
+										data-testid="resource-select"
+										id="resource"
+									>
+										<SelectValue placeholder={t('selectResource')} />
+									</SelectTrigger>
+									<SelectContent>
+										{resources.map((resource) => (
+											<SelectItem
+												key={String(resource.id)}
+												value={String(resource.id)}
+											>
+												{resource.title}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
+						)}
+
+						<div className="flex items-center space-x-2">
+							<Checkbox
+								checked={isAllDay}
+								id="allDay"
+								onCheckedChange={(checked) =>
+									handleAllDayChange(checked === true)
+								}
+							/>
+							<Label className="text-xs sm:text-sm" htmlFor="allDay">
+								{t('allDay')}
+							</Label>
+						</div>
+
+						<div className="grid grid-cols-2 gap-2 sm:gap-4">
+							{dateFields.map(([label, date, onChange]) => (
+								<div key={label}>
+									<Label className="text-xs sm:text-sm">{t(label)}</Label>
+									<DatePicker
+										className="mt-1"
+										closeOnSelect
+										date={date}
+										disabled={disabledDateMatcher}
+										onChange={onChange}
+									/>
+								</div>
+							))}
+						</div>
+
+						{!isAllDay && (
+							<div className="grid grid-cols-2 gap-2 sm:gap-4">
+								{timeFields.map(([label, name, value, onChange, c]) => (
+									<div key={label}>
+										<Label className="text-xs sm:text-sm">{t(label)}</Label>
+										<TimePicker
+											className="mt-1 h-8 text-sm sm:h-9"
+											maxTime={c.max}
+											minTime={c.min}
+											name={name}
+											onChange={onChange}
+											placeholder={t('searchTime')}
+											timeFormat={timeFormat}
+											value={value}
+										/>
+									</div>
+								))}
+							</div>
+						)}
+
+						<div className="grid gap-1 sm:gap-2">
+							<Label className="text-xs sm:text-sm">{t('color')}</Label>
+							<ColorPicker
+								aria-label={t('color')}
+								onChange={handleColorChange}
+								swatches={EVENT_COLOR_SWATCHES}
+								value={selectedColor}
+							/>
+						</div>
+
+						<EventFormTextField
+							label={t('location')}
+							name="location"
+							onChange={handleInputChange}
+							placeholder={t('eventLocationPlaceholder')}
+							value={formValues.location}
+						/>
+
+						{/* Plugin-provided form sections (e.g. the recurrence editor). */}
+						<EventFormSlot event={draftEvent} onChange={mergePluginUpdates} />
+					</div>
+				</ScrollArea>
+
+				<DialogFooter className="mt-4 shrink-0 flex flex-col-reverse gap-2 sm:flex-row sm:gap-0">
+					{selectedEventId && (
+						<Button
+							className="w-full sm:mr-auto sm:w-auto"
+							onClick={handleDelete}
+							size="sm"
+							type="button"
+							variant="destructive"
+						>
+							{t('delete')}
+						</Button>
+					)}
+					<div className="flex w-full gap-2 sm:w-auto">
+						<Button
+							className="flex-1 sm:flex-none"
+							onClick={onClose}
+							size="sm"
+							type="button"
+							variant="outline"
+						>
+							{t('cancel')}
+						</Button>
+						<Button
+							className="flex-1 sm:flex-none"
+							disabled={isResourceMissing}
+							size="sm"
+							type="submit"
+						>
+							{selectedEventId ? t('update') : t('create')}
+						</Button>
+					</div>
+				</DialogFooter>
+			</form>
+
+			{/* Scope dialog, provided by the owning plugin (e.g. recurrence) */}
+			<EventMutationScopeSlot
+				dialog={dialogState}
+				onCancel={closeDialog}
+				onResolve={handleConfirm}
+			/>
+		</>
+	)
+}

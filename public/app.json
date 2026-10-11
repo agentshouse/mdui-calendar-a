@@ -1,0 +1,6 @@
+{
+  "entry": "index.html",
+  "room_slots": [
+    {"name": "calendar", "access": "write", "types": ["calendar_event"]}
+  ]
+}

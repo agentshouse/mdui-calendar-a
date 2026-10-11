@@ -1,0 +1,268 @@
+import type {
+	BusinessHours,
+	CalendarEvent,
+	EventsChange,
+	IlamyPlugin,
+	Resource,
+} from '@ilamy/types'
+import type { Dayjs } from '@ilamy/utils/dayjs'
+import type { FC, ReactNode } from 'react'
+import { useMemo } from 'react'
+import { EVENT_BAR_HEIGHT, GAP_BETWEEN_ELEMENTS } from '@/config/constants'
+import type {
+	Translations,
+	TranslatorFunction,
+} from '@/config/translations/types'
+import type { EventFormProps } from '@/features/calendar/components/event-form/event-form'
+import { useCalendarEngine } from '@/features/calendar/hooks/use-calendar-engine'
+import type {
+	CalendarClassesOverride,
+	CellInfo,
+	DateRange,
+	EventSegment,
+	RenderCurrentTimeIndicatorProps,
+	SlotDuration,
+} from '@/features/calendar/types'
+import { useLatestHandler } from '@/hooks/use-latest-handler'
+import { composePluginProviders } from '@/lib/plugins/compose-plugin-providers'
+import type { CalendarView, TimeFormat } from '@/types'
+import { CalendarCellProvider } from '../calendar-cell-context/calendar-cell-provider'
+import { CalendarContext, type CalendarContextType } from './calendar-context'
+
+export interface CalendarProviderProps {
+	children: ReactNode
+	events?: CalendarEvent[]
+	firstDayOfWeek?: number // 0 for Sunday, 1 for Monday, etc.
+	initialView?: CalendarView
+	initialDate?: Dayjs | Date | string
+	renderEvent?: (event: CalendarEvent, segment: EventSegment) => ReactNode
+	onEventClick?: (event: CalendarEvent) => void
+	onCellClick?: (info: CellInfo) => void
+	isCellDisabled?: (info: CellInfo) => boolean
+	getCellClassName?: (info: CellInfo) => string
+	onViewChange?: (view: CalendarView) => void
+	onEventAdd?: (event: CalendarEvent) => void
+	onEventUpdate?: (event: CalendarEvent) => void
+	onEventDelete?: (event: CalendarEvent) => void
+	onEventsChange?: (change: EventsChange) => void
+	onDateChange?: (date: Dayjs, range: DateRange) => void
+	locale?: string
+	timezone?: string
+	disableCellClick?: boolean
+	disableEventClick?: boolean
+	disableDragAndDrop?: boolean
+	/** Max stacked events per day in horizontal grids; the engine defaults it. */
+	dayMaxEvents?: number
+	eventSpacing?: number
+	eventHeight?: number
+	stickyViewHeader?: boolean
+	viewHeaderClassName?: string
+	headerComponent?: ReactNode // Optional custom header component
+	headerClassName?: string // Optional custom header class
+	businessHours?: BusinessHours | BusinessHours[]
+	renderEventForm?: (props: EventFormProps) => ReactNode
+	onMoreEventsClick?: (day: Dayjs, events: CalendarEvent[]) => void
+	// Translation options - provide either translations object OR translator function
+	translations?: Translations
+	translator?: TranslatorFunction
+	timeFormat?: TimeFormat
+	classesOverride?: CalendarClassesOverride
+	renderCurrentTimeIndicator?: (
+		props: RenderCurrentTimeIndicatorProps
+	) => ReactNode
+	renderHour?: (date: Dayjs) => ReactNode
+	hideNonBusinessHours?: boolean
+	hideExportButton?: boolean
+	hiddenDays?: Set<number>
+	slotDuration?: SlotDuration
+	scrollTime?: string
+	scrollToNow?: boolean
+	plugins?: IlamyPlugin[]
+	/** The resource axis. Absent/empty → a regular calendar (no filtering, no resource columns). */
+	resources?: Resource[]
+	/** Custom render for resource header cells. */
+	renderResource?: (resource: Resource) => ReactNode
+	/** Resource arrangement preference. Only applies when `resources` is set. @default 'horizontal' */
+	orientation?: 'horizontal' | 'vertical'
+	/** Week-view granularity for resource weeks. @default 'hourly' */
+	weekViewGranularity?: 'hourly' | 'daily'
+}
+
+// Module constant, not a per-render `?? []`: keeps the engine's event store
+// from re-syncing (and the context value from churning) when `events` is absent.
+const EMPTY_EVENTS: CalendarEvent[] = []
+
+/**
+ * Builds the shared context value: engine slices (including the resource
+ * axis) + presentation props. The single assembly point for the ONE provider.
+ */
+const useCalendarContextValue = (
+	props: Omit<CalendarProviderProps, 'children'>
+): CalendarContextType => {
+	const {
+		events = EMPTY_EVENTS,
+		firstDayOfWeek = 0,
+		initialView = 'month',
+		initialDate,
+		renderEvent,
+		onEventClick,
+		onCellClick,
+		isCellDisabled,
+		getCellClassName,
+		onViewChange,
+		onEventAdd,
+		onEventUpdate,
+		onEventDelete,
+		onEventsChange,
+		onDateChange,
+		locale,
+		timezone,
+		disableCellClick,
+		disableEventClick,
+		disableDragAndDrop,
+		dayMaxEvents,
+		eventSpacing = GAP_BETWEEN_ELEMENTS,
+		eventHeight = EVENT_BAR_HEIGHT,
+		stickyViewHeader = true,
+		viewHeaderClassName = '',
+		headerComponent,
+		headerClassName,
+		businessHours,
+		renderEventForm,
+		translations,
+		translator,
+		timeFormat = '12-hour',
+		classesOverride,
+		renderCurrentTimeIndicator,
+		renderHour,
+		hideNonBusinessHours = false,
+		hideExportButton = false,
+		hiddenDays,
+		slotDuration = 60,
+		scrollTime,
+		scrollToNow,
+		plugins,
+		resources,
+		renderResource,
+		orientation,
+		weekViewGranularity,
+	} = props
+
+	// Called on a click, never while rendering: see useLatestHandler.
+	const onMoreEventsClick = useLatestHandler(props.onMoreEventsClick)
+
+	const engine = useCalendarEngine({
+		events,
+		firstDayOfWeek,
+		initialView,
+		initialDate,
+		dayMaxEvents,
+		businessHours,
+		onEventAdd,
+		onEventUpdate,
+		onEventDelete,
+		onEventsChange,
+		onDateChange,
+		onViewChange,
+		locale,
+		timezone,
+		translations,
+		translator,
+		plugins,
+		onEventClick,
+		onCellClick,
+		disableEventClick,
+		disableCellClick,
+		resources,
+		orientation,
+		weekViewGranularity,
+	})
+
+	return useMemo(() => {
+		// The engine returns the context core plus the two click handlers; the
+		// handlers are destructured OFF so the spread below keeps the exact v1
+		// context shape (they re-enter as onEventClick / onCellClick). Fields the
+		// engine already provides (businessHours, dayMaxEvents, …) ride the
+		// spread — only presentation props are added here.
+		const { handleEventClick, handleDateClick, ...calendarEngine } = engine
+		return {
+			...calendarEngine,
+			renderEvent,
+			onEventClick: handleEventClick,
+			onCellClick: handleDateClick,
+			isCellDisabled,
+			getCellClassName,
+			locale,
+			timezone,
+			disableCellClick,
+			disableEventClick,
+			disableDragAndDrop,
+			eventSpacing,
+			eventHeight,
+			stickyViewHeader,
+			viewHeaderClassName,
+			headerComponent,
+			headerClassName,
+			renderEventForm,
+			onMoreEventsClick,
+			timeFormat,
+			classesOverride,
+			renderCurrentTimeIndicator,
+			renderHour,
+			hideNonBusinessHours,
+			hideExportButton,
+			hiddenDays,
+			slotDuration,
+			scrollTime,
+			scrollToNow,
+			renderResource,
+		}
+	}, [
+		engine,
+		renderEvent,
+		renderResource,
+		isCellDisabled,
+		getCellClassName,
+		locale,
+		timezone,
+		disableCellClick,
+		disableEventClick,
+		disableDragAndDrop,
+		eventSpacing,
+		eventHeight,
+		stickyViewHeader,
+		viewHeaderClassName,
+		headerComponent,
+		headerClassName,
+		renderEventForm,
+		onMoreEventsClick,
+		timeFormat,
+		classesOverride,
+		renderCurrentTimeIndicator,
+		renderHour,
+		hideNonBusinessHours,
+		hideExportButton,
+		hiddenDays,
+		slotDuration,
+		scrollTime,
+		scrollToNow,
+	])
+}
+
+export const CalendarProvider: FC<CalendarProviderProps> = ({
+	children,
+	...props
+}) => {
+	const contextValue = useCalendarContextValue(props)
+
+	const wrappedChildren = composePluginProviders(
+		contextValue.getProviders(),
+		children
+	)
+
+	return (
+		<CalendarContext.Provider value={contextValue}>
+			<CalendarCellProvider>{wrappedChildren}</CalendarCellProvider>
+		</CalendarContext.Provider>
+	)
+}

@@ -1,0 +1,57 @@
+$defs:
+  integerOrIntegers:
+    oneOf:
+      - {type: integer}
+      - {type: array, items: {type: integer}}
+  weekday:
+    oneOf:
+      - {type: integer, minimum: 0, maximum: 6}
+      - type: object
+        properties:
+          weekday: {type: integer, minimum: 0, maximum: 6}
+          n: {type: integer, minimum: -53, maximum: 53, not: {const: 0}}
+        required: [weekday]
+calendar_event:
+  properties:
+    id: {type: string, minLength: 1, maxLength: 200, pattern: '^[a-zA-Z0-9_.-]+$'}
+    title: {type: string, minLength: 1, maxLength: 1000, pattern: '\S'}
+    start: {type: string, format: date-time}
+    end: {type: string, format: date-time}
+    description: {type: string, maxLength: 50000}
+    location: {type: string, maxLength: 2000}
+    backgroundColor: {type: string, maxLength: 200}
+    color: {type: string, maxLength: 200}
+    allDay: {type: boolean}
+    uid: {type: [string, 'null'], maxLength: 300}
+    recurrenceId: {type: [string, 'null'], format: date-time}
+    rrule:
+      type: [object, 'null']
+      properties:
+        freq: {type: integer, minimum: 0, maximum: 6}
+        interval: {type: integer, minimum: 1}
+        count: {type: integer, minimum: 1}
+        dtstart: {type: string, format: date-time}
+        until: {type: string, format: date-time}
+        wkst: {$ref: '#/$defs/weekday'}
+        byweekday:
+          oneOf:
+            - {$ref: '#/$defs/weekday'}
+            - type: array
+              items: {$ref: '#/$defs/weekday'}
+        bysetpos: {$ref: '#/$defs/integerOrIntegers'}
+        bymonth: {$ref: '#/$defs/integerOrIntegers'}
+        bymonthday: {$ref: '#/$defs/integerOrIntegers'}
+        byyearday: {$ref: '#/$defs/integerOrIntegers'}
+        byweekno: {$ref: '#/$defs/integerOrIntegers'}
+        byhour: {$ref: '#/$defs/integerOrIntegers'}
+        byminute: {$ref: '#/$defs/integerOrIntegers'}
+        bysecond: {$ref: '#/$defs/integerOrIntegers'}
+        byeaster: {type: integer}
+        tzid: {type: string}
+      required: [freq]
+    exdates:
+      type: array
+      items: {type: string, format: date-time}
+    createdAt: {type: string, format: date-time}
+    updatedAt: {type: string, format: date-time}
+  required: [id, title, start, end, createdAt, updatedAt]

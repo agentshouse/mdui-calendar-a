@@ -1,0 +1,56 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": [
+      "ES2023",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "types": [
+      "vite/client",
+      "node"
+    ],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "vendor/ilamy/calendar/*"
+      ],
+      "@ilamy/calendar": [
+        "vendor/ilamy/calendar/index.ts"
+      ],
+      "@ilamy/calendar-recurrence": [
+        "vendor/ilamy/recurrence/index.ts"
+      ],
+      "@ilamy/types": [
+        "vendor/ilamy/types/index.ts"
+      ],
+      "@ilamy/utils/*": [
+        "vendor/ilamy/utils/*"
+      ],
+      "@ilamy/ui/*": [
+        "vendor/ilamy/ui/*"
+      ]
+    },
+    "allowImportingTsExtensions": true
+  },
+  "include": [
+    "src",
+    "vendor/ilamy",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "test"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}

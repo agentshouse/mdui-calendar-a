@@ -1,0 +1,504 @@
+import type {
+	BusinessHours,
+	CalendarEvent,
+	EventsChange,
+	IlamyPlugin,
+	Resource,
+	WeekDays,
+} from '@ilamy/types'
+import type { Dayjs } from '@ilamy/utils/dayjs'
+import type { ReactNode } from 'react'
+import type {
+	Translations,
+	TranslatorFunction,
+} from '@/config/translations/types'
+import type { EventFormProps } from '@/features/calendar/components/event-form/event-form'
+import type { CalendarView, TimeFormat } from '@/types'
+
+/**
+ * Granularity of the time grid in minutes for day, week, and resource hour views.
+ * Quarter-hour increments only. `60` shows one row per hour with no sub-hour lines.
+ * `30` shows two rows per hour. `15` shows four rows per hour with dashed sub-hour separators.
+ */
+export type SlotDuration = 15 | 30 | 60
+
+/**
+ * Which slice of an event a `renderEvent` call is drawing.
+ *
+ * An event too long for the row it starts in is cut at the boundary and drawn
+ * as one bar per row, each through its own `renderEvent` call. Without knowing
+ * which slice it has, a custom renderer cannot tell a real end from a break —
+ * so it rounds both, marks neither, and two halves of one booking read as two
+ * bookings that happen to sit either side of a Sunday. The built-in renderer
+ * has always had this; a custom one had no way to ask.
+ *
+ * Named to match FullCalendar's event render hook, which gives its renderers
+ * the same two facts under the same names, so a renderer ported from there
+ * behaves the same here.
+ */
+export interface EventSegment {
+	/** This bar holds the event's real start, rather than resuming a cut one. */
+	isStart: boolean
+	/** This bar holds the event's real end, rather than running past it. */
+	isEnd: boolean
+}
+
+/**
+ * Custom class names for calendar styling.
+ * Allows users to override default styles for various calendar elements.
+ */
+export interface CalendarClassesOverride {
+	/**
+	 * Class name for disabled cells (non-business hours).
+	 * Replaces the DISABLED_CELL_CLASSNAME constant.
+	 * @default "bg-secondary text-muted-foreground pointer-events-none"
+	 * @example "bg-gray-100 text-gray-400 cursor-not-allowed"
+	 */
+	disabledCell?: string
+}
+
+/**
+ * This interface extends the base CalendarEvent but allows more flexible date types
+ * for the start and end properties. The component will automatically convert these
+ * to dayjs objects internally for consistent date handling.
+ *
+ * @interface IlamyCalendarPropEvent
+ * @extends {Omit<CalendarEvent, 'start' | 'end'>}
+ */
+export interface IlamyCalendarPropEvent
+	extends Omit<CalendarEvent, 'start' | 'end'> {
+	start: Dayjs | Date | string
+	end: Dayjs | Date | string
+}
+
+/**
+ * Information passed to the onCellClick callback.
+ * Uses named properties for extensibility.
+ */
+export interface DateRange {
+	start: Dayjs
+	end: Dayjs
+}
+
+export interface CellInfo {
+	/** Start date/time of the cell */
+	start: Dayjs
+	/** End date/time of the cell */
+	end: Dayjs
+	/** Full resource object in resource calendars; undefined in a regular calendar */
+	resource?: Resource
+	/** Whether this is an all-day cell (optional) */
+	allDay?: boolean
+}
+
+/**
+ * Input accepted by `openEventForm`. A partial event, optionally carrying the
+ * full resource of the clicked cell (`CellInfo` is assignable as-is). When no
+ * explicit `resourceId` is given, the carried resource's id is used.
+ */
+export type OpenEventFormInput = Partial<CalendarEvent> & {
+	resource?: Resource
+}
+
+/**
+ * Props passed to the custom render function for the current time indicator.
+ * Allows users to customize how the current time indicator is displayed.
+ */
+export interface RenderCurrentTimeIndicatorProps {
+	/** The current time as a dayjs object */
+	currentTime: Dayjs
+	/** The start of the visible time range */
+	rangeStart: Dayjs
+	/** The end of the visible time range */
+	rangeEnd: Dayjs
+	/** Progress percentage (0-100) representing position in the range */
+	progress: number
+	/**
+	 * Layout axis the indicator is rendered along.
+	 * - `'vertical'`: `progress` maps to a `top` offset (day/week vertical grids).
+	 * - `'horizontal'`: `progress` maps to a `left` offset (horizontal resource hour grids).
+	 *
+	 * The library always populates this field, so consumers can treat it as
+	 * always defined inside their render function.
+	 *
+	 * Note: distinct from the `orientation` prop on `IlamyResourceCalendar`.
+	 * `orientation` chooses which view component renders the calendar; `axis` tells
+	 * your render function which dimension `progress` maps to inside that view.
+	 */
+	axis?: 'vertical' | 'horizontal'
+	/**
+	 * The resource associated with this column (if in a resource-based view).
+	 * Pass this to conditionally render custom indicators for specific resources.
+	 */
+	resource?: Resource
+	/** The current calendar view (e.g. 'day', 'week') */
+	view: CalendarView
+}
+
+export interface IlamyCalendarProps {
+	/**
+	 * Array of events to display in the calendar.
+	 */
+	events?: IlamyCalendarPropEvent[]
+	/**
+	 * The first day of the week to display in the calendar.
+	 * Can be 'sunday', 'monday', etc. Defaults to 'sunday'.
+	 */
+	firstDayOfWeek?: WeekDays
+	/**
+	 * The initial view to display when the calendar loads.
+	 * Defaults to 'month'.
+	 */
+	initialView?: CalendarView
+	/**
+	 * The initial date to display when the calendar loads.
+	 * If not provided, the calendar will default to today's date.
+	 */
+	initialDate?: Dayjs | Date | string
+	/**
+	 * Custom render function for calendar events.
+	 * If provided, it will override the default event rendering.
+	 *
+	 * The default content keeps its title in view while a long event is
+	 * scrolled partly out of the grid; custom content does not. To opt a
+	 * custom title in, make it sticky with `left: var(--ilamy-sticky-left)`
+	 * and `top: var(--ilamy-sticky-top)`, which each grid publishes to clear
+	 * its own sticky column and header.
+	 */
+	renderEvent?: (event: CalendarEvent, segment: EventSegment) => ReactNode
+	/**
+	 * Callback when an event is clicked.
+	 * Provides the clicked event object.
+	 */
+	onEventClick?: (event: CalendarEvent) => void
+	/**
+	 * Callback when a calendar cell is clicked.
+	 * Provides cell information including start/end dates and optional resourceId.
+	 */
+	onCellClick?: (info: CellInfo) => void
+	/**
+	 * Predicate to disable individual cells based on custom logic (holidays,
+	 * days-off, past dates, on-call windows, etc.). Return `true` to disable a
+	 * cell — disabled cells block event creation clicks, reject drag-drops, and
+	 * are grayed out. Composes with `businessHours` (a cell is disabled if either
+	 * business hours or this predicate disables it).
+	 */
+	isCellDisabled?: (info: CellInfo) => boolean
+	/**
+	 * Returns extra CSS classes for a cell based on custom logic (unavailability
+	 * styling, on-call windows, etc.). Unlike `isCellDisabled`, this is purely
+	 * visual — cells remain clickable and accept drag-drops.
+	 */
+	getCellClassName?: (info: CellInfo) => string
+	/**
+	 * Callback when the calendar view changes (month, week, day, year).
+	 * Useful for syncing with external state or analytics.
+	 */
+	onViewChange?: (view: CalendarView) => void
+	/**
+	 * Callback when a new event is added to the calendar.
+	 * Provides the newly created event object.
+	 */
+	onEventAdd?: (event: CalendarEvent) => void
+	/**
+	 * Callback when an existing event is updated.
+	 * Provides the updated event object.
+	 */
+	onEventUpdate?: (event: CalendarEvent) => void
+	/**
+	 * Callback when an event is deleted from the calendar.
+	 * Provides the deleted event object.
+	 */
+	onEventDelete?: (event: CalendarEvent) => void
+	/**
+	 * Callback once per user action, with every stored row it touched: what
+	 * `onEventAdd`, `onEventUpdate` and `onEventDelete` report one row at a time.
+	 * Use it to save a recurring edit (series, override, deleted overrides) as
+	 * one unit. The per-row callbacks still fire; use one or the other.
+	 */
+	onEventsChange?: (change: EventsChange) => void
+	/**
+	 * Callback when the current date changes (navigation).
+	 * Provides the new current date and the current visible range.
+	 */
+	onDateChange?: (date: Dayjs, range: DateRange) => void
+	/**
+	 * Locale to use for formatting dates and times.
+	 * If not provided, the default locale will be used.
+	 */
+	locale?: string
+	/**
+	 * Translations object for internationalization.
+	 * Provide either this OR translator function, not both.
+	 */
+	translations?: Translations
+	/**
+	 * Translator function for internationalization.
+	 * Provide either this OR translations object, not both.
+	 */
+	translator?: TranslatorFunction
+	/**
+	 * Timezone to use for displaying dates and times.
+	 * If not provided, the local timezone will be used.
+	 */
+	timezone?: string
+	/**
+	 * Whether to disable click events on calendar cells.
+	 * Useful for read-only views or when cell clicks are not needed.
+	 */
+	disableCellClick?: boolean
+	/**
+	 * Whether to disable click events on calendar events.
+	 * Useful for read-only views or when event clicks are not needed.
+	 */
+	disableEventClick?: boolean
+	/**
+	 * Whether to disable drag-and-drop functionality for calendar events.
+	 * Useful for read-only views or when drag-and-drop is not needed.
+	 */
+	disableDragAndDrop?: boolean
+	/**
+	 * Maximum number of events to display in one grid cell: a day in month
+	 * view, an hour in the resource day view.
+	 * Additional events will be hidden and can be viewed via a "more" link.
+	 * Defaults to 4 if not specified.
+	 */
+	dayMaxEvents?: number
+	/**
+	 * Vertical spacing between stacked events in pixels.
+	 * Controls the gap between events when multiple events are displayed in the same view.
+	 * Defaults to 1 pixel if not specified.
+	 * Recommended range: 1-8 pixels for optimal readability.
+	 */
+	eventSpacing?: number
+	/**
+	 * Height of event bars in horizontal grid views (month view, resource month, resource week horizontal) in pixels.
+	 * Increase this to show more content per event (e.g., title + time on separate lines).
+	 * Does not affect day/week views, which use percentage-based heights that scale with event duration.
+	 * Defaults to 24 pixels if not specified.
+	 */
+	eventHeight?: number
+	/**
+	 * Whether to stick the view header to the top of the calendar.
+	 * Useful for keeping the header visible while scrolling.
+	 */
+	stickyViewHeader?: boolean
+	/**
+	 * Custom class name for the view header.
+	 * Useful for applying custom styles or themes.
+	 */
+	viewHeaderClassName?: string
+	/**
+	 * Custom header component to replace the default calendar header.
+	 * Useful for adding custom branding or additional controls.
+	 */
+	headerComponent?: ReactNode
+	/**
+	 * Custom class name for the calendar header.
+	 * Useful for applying custom styles to the header.
+	 */
+	headerClassName?: string
+	/**
+	 * Configuration for business hours.
+	 * Defines the working hours to be highlighted on the calendar.
+	 * Can be a single BusinessHours object (applies to all specified days)
+	 * or an array of BusinessHours objects (for different hours on different days).
+	 */
+	businessHours?: BusinessHours | BusinessHours[]
+	/**
+	 * Custom render function for the event form.
+	 * If provided, it will override the default event form component.
+	 * The function receives EventFormProps and should return a React node.
+	 */
+	renderEventForm?: (props: EventFormProps) => ReactNode
+	/**
+	 * Called when the "+N more" overflow indicator in a month/grid cell is
+	 * clicked, receiving the cell's day and its full list of events.
+	 * If provided, it overrides the built-in "all events" dialog, letting you
+	 * render your own popover/dialog. When omitted, the default dialog opens.
+	 */
+	onMoreEventsClick?: (day: Dayjs, events: CalendarEvent[]) => void
+	/**
+	 * Time format for displaying times in the calendar.
+	 * - "12-hour": Times displayed as "1:00 PM" (default)
+	 * - "24-hour": Times displayed as "13:00"
+	 */
+	timeFormat?: TimeFormat
+	/**
+	 * Whether to hide non-business hours in Day and Week views.
+	 * Requires businessHours to be configured.
+	 * @default false
+	 */
+	hideNonBusinessHours?: boolean
+	/**
+	 * Whether to hide the iCalendar export button in the calendar header.
+	 * Applies to both desktop and mobile header layouts.
+	 * @default false
+	 */
+	hideExportButton?: boolean
+	/**
+	 * Custom class names for overriding default calendar element styles.
+	 * Allows fine-grained control over the appearance of different calendar elements.
+	 * @example { disabledCell: "bg-gray-100 text-gray-400" }
+	 */
+	classesOverride?: CalendarClassesOverride
+	/**
+	 * Custom render function for the current time indicator.
+	 * If provided, replaces the default red line indicator.
+	 * Useful for adding custom time labels or styling.
+	 *
+	 * Branch on `axis` to position correctly across vertical day/week grids
+	 * (`axis === 'vertical'` → use `top`) and horizontal resource hour grids
+	 * (`axis === 'horizontal'` → use `left`).
+	 *
+	 * @example
+	 * ```tsx
+	 * renderCurrentTimeIndicator={({ currentTime, progress, resource, view, axis }) => {
+	 *   // Only show the time badge for the first resource in Day view (to avoid repetition)
+	 *   const isPrimary = !resource || resource.id === 'room-a'
+	 *   const showBadge = view === 'day' ? isPrimary : true
+	 *
+	 *   if (axis === 'horizontal') {
+	 *     return (
+	 *       <div style={{ left: `${progress}%` }} className="absolute top-0 bottom-0">
+	 *         <div className="w-0.5 h-full bg-red-500" />
+	 *       </div>
+	 *     )
+	 *   }
+	 *
+	 *   return (
+	 *     <div style={{ top: `${progress}%` }} className="absolute left-0 right-0">
+	 *       <div className="h-0.5 bg-red-500" />
+	 *       {showBadge && (
+	 *         <span className="absolute left-0 bg-red-500 text-white text-[10px] px-1 rounded-r-sm">
+	 *           {currentTime.format('h:mm A')}
+	 *         </span>
+	 *       )}
+	 *     </div>
+	 *   )
+	 * }}
+	 * ```
+	 */
+	renderCurrentTimeIndicator?: (
+		props: RenderCurrentTimeIndicatorProps
+	) => ReactNode
+	/**
+	 * Days of the week to hide from the week view.
+	 * Hidden days won't render as columns, giving remaining days more space.
+	 *
+	 * Applies to:
+	 * - Regular vertical week view (always)
+	 * - Resource vertical week view in hourly granularity
+	 *
+	 * Does NOT apply to:
+	 * - Resource horizontal week view (layout is days-as-rows)
+	 * - Resource vertical week view in daily granularity
+	 *   (`weekViewGranularity: 'daily'`) — non-contiguous visible days would
+	 *   break multi-day event positioning
+	 * - Month, day, and year views
+	 *
+	 * @default []
+	 * @example ['saturday', 'sunday'] // Hide weekends
+	 */
+	hiddenDays?: WeekDays[]
+	/**
+	 * Custom render function for the hour labels in the gutter/header.
+	 * Receives a Dayjs object for the hour and should return a React node.
+	 */
+	renderHour?: (date: Dayjs) => ReactNode
+	/**
+	 * Granularity of the time grid in minutes for day, week, and resource hour views.
+	 * Quarter-hour increments only: `15`, `30`, or `60`.
+	 *
+	 * - `60` (default): one row per hour, no sub-hour lines.
+	 * - `30`: two rows per hour (top of hour, half hour).
+	 * - `15`: four rows per hour with dashed sub-hour separators.
+	 *
+	 * @default 60
+	 */
+	slotDuration?: SlotDuration
+	/**
+	 * Initial scroll position for hour-resolution views (day, week, resource
+	 * day, resource week, in both orientations). Accepts `"HH:mm"` or
+	 * `"HH:mm:ss"`. Minutes are floored to the hour. The scroll target is
+	 * clamped to the nearest visible row when `hideNonBusinessHours` hides
+	 * the requested hour.
+	 *
+	 * Reapplied whenever the visible date range changes (navigation, view
+	 * switch), the rendered hours change, or `scrollTime` itself changes, as
+	 * FullCalendar does.
+	 * Ordinary re-renders leave the user's own scroll position alone.
+	 * `scrollToNow` takes precedence while the current moment is on screen.
+	 *
+	 * Independent of `businessHours`: you can show all 24 hours and still
+	 * focus on 08:00 on load.
+	 *
+	 * **Requires a fixed calendar height** so the internal time grid has a
+	 * scroll container to scroll within. If the calendar host element has
+	 * `height: auto`, the time grid grows to fit all hours and there is
+	 * nothing to scroll — this prop becomes a silent no-op.
+	 *
+	 * @example
+	 * ```tsx
+	 * <IlamyCalendar
+	 *   businessHours={{ daysOfWeek: [1,2,3,4,5], startTime: 0, endTime: 24 }}
+	 *   scrollTime="08:00:00"
+	 * />
+	 * ```
+	 */
+	scrollTime?: string
+	/**
+	 * Open every scrolling grid on the current moment rather than its start:
+	 * the current hour in time grids (day, week, resource day, hourly resource
+	 * week), and today's column or row in day grids (resource month, daily
+	 * resource week, #285). Month and year grids do not scroll, so it does
+	 * nothing there.
+	 *
+	 * Applies only while now is on screen. On a range without it (after
+	 * navigating away, or when the current hour or day is hidden) the grid
+	 * falls back to `scrollTime`, or to its start. Like `scrollTime`, it is
+	 * applied when the range, rendered hours, or this prop changes. Clock
+	 * movement alone never changes the scroll position. "Now" is the current
+	 * instant; the calendar's `timezone` only decides how it is drawn.
+	 *
+	 * Now is lined up with the leading edge, like `scrollTime`. Late in the day
+	 * or month there is not enough grid left to do that, and the browser stops
+	 * at its maximum scroll: now stays on screen, short of the edge. FullCalendar
+	 * behaves the same.
+	 *
+	 * Neither FullCalendar nor RFC 5545 defines this. FullCalendar's timeline
+	 * opens on the range start plus `scrollTime`, and its users reach today by
+	 * setting `scrollTime` themselves; this is that, done for them.
+	 *
+	 * @default false
+	 */
+	scrollToNow?: boolean
+	/**
+	 * Optional plugins that add behavior/UI (e.g. recurrence). The core ships
+	 * with no plugins by default — pass `recurrencePlugin()` to enable recurring
+	 * events.
+	 */
+	plugins?: IlamyPlugin[]
+	/**
+	 * Resources (people, rooms, equipment) to display as a resource axis.
+	 * When set: events are shown per matching resource (`resourceIds`, falling
+	 * back to `resourceId`); events with no resource assignment are hidden; the
+	 * year view is hidden from the view switcher.
+	 */
+	resources?: Resource[]
+	/** Custom render function for resource header cells. */
+	renderResource?: (resource: Resource) => ReactNode
+	/**
+	 * How resources are arranged. Only applies when `resources` is set.
+	 * - "horizontal": resources are rows, time is columns (default)
+	 * - "vertical": resources are columns, time is rows
+	 */
+	orientation?: 'horizontal' | 'vertical'
+	/**
+	 * Granularity of week-view time slots when `resources` is set.
+	 * - "hourly": one column per hour (default)
+	 * - "daily": one column per day. Note: `hiddenDays` is ignored in daily
+	 *   mode (non-contiguous days would break multi-day event positioning).
+	 */
+	weekViewGranularity?: 'hourly' | 'daily'
+}
