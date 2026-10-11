@@ -12,7 +12,8 @@
     "test": "vitest run",
     "prebuild": "node scripts/prepare-release.mjs",
     "release:check": "node scripts/check-release.mjs",
-    "notices": "node scripts/generate-notices.mjs"
+    "notices": "node scripts/generate-notices.mjs",
+    "publish": "node publish.mjs"
   },
   "dependencies": {
     "@agentshouse/app-bridge": "0.1.0-ce524f6608238",

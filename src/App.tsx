@@ -9,11 +9,11 @@ import { Label } from '@ilamy/ui/components/label';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@ilamy/ui/components/dialog';
 import { CalendarDays, LoaderCircle } from 'lucide-react';
 import { dataStore, type CalendarEvent, type EditorSession, type MutationSession } from './data/house';
+import { validationMessage as message } from './validation-message';
 
 export const REFERENCE_DATE = '2026-10-11T00:00:00.000Z';
 const recurrence = recurrencePlugin();
 const plugins = [recurrence];
-const message = (error: unknown) => error instanceof Error ? error.message : String(error);
 
 /** The only conversion boundary: Room JSON is never populated with Dayjs or RRule instances. */
 export function toDonorEvent(event: CalendarEvent): DonorEvent {
