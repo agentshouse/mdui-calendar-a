@@ -1,0 +1,353 @@
+[
+  {
+    "type": "calendar_event",
+    "path": "events/5.1.md",
+    "fields": {
+      "id": "5.1",
+      "title": "Quarterly Planning",
+      "description": "Falls back to bg-blue-500 + text-white",
+      "start": "2026-10-12T15:00:00.000Z",
+      "end": "2026-10-12T16:00:00.000Z",
+      "createdAt": "2026-10-11T00:00:00.000Z",
+      "updatedAt": "2026-10-11T00:00:00.000Z"
+    }
+  },
+  {
+    "type": "calendar_event",
+    "path": "events/5.2.md",
+    "fields": {
+      "id": "5.2",
+      "title": "Design Review",
+      "description": "Fill and text both ride in `color` as Tailwind classes",
+      "start": "2026-10-12T10:00:00.000Z",
+      "end": "2026-10-12T11:00:00.000Z",
+      "color": "bg-teal-100 text-teal-800",
+      "createdAt": "2026-10-11T00:00:00.000Z",
+      "updatedAt": "2026-10-11T00:00:00.000Z"
+    }
+  },
+  {
+    "type": "calendar_event",
+    "path": "events/5.3.md",
+    "fields": {
+      "id": "5.3",
+      "title": "Client Check-in",
+      "description": "Text colour only; the fill falls back",
+      "start": "2026-10-12T12:00:00.000Z",
+      "end": "2026-10-12T13:00:00.000Z",
+      "color": "#7c3aed",
+      "createdAt": "2026-10-11T00:00:00.000Z",
+      "updatedAt": "2026-10-11T00:00:00.000Z"
+    }
+  },
+  {
+    "type": "calendar_event",
+    "path": "events/5.4.md",
+    "fields": {
+      "id": "5.4",
+      "title": "Sprint Retrospective",
+      "description": "Fill as a Tailwind class, no text colour",
+      "start": "2026-10-13T10:00:00.000Z",
+      "end": "2026-10-13T12:00:00.000Z",
+      "backgroundColor": "bg-rose-500",
+      "createdAt": "2026-10-11T00:00:00.000Z",
+      "updatedAt": "2026-10-11T00:00:00.000Z"
+    }
+  },
+  {
+    "type": "calendar_event",
+    "path": "events/5.5.md",
+    "fields": {
+      "id": "5.5",
+      "title": "Budget Review",
+      "description": "Fill as a CSS value, no text colour",
+      "start": "2026-10-13T13:00:00.000Z",
+      "end": "2026-10-13T14:00:00.000Z",
+      "backgroundColor": "#f59e0b",
+      "createdAt": "2026-10-11T00:00:00.000Z",
+      "updatedAt": "2026-10-11T00:00:00.000Z"
+    }
+  },
+  {
+    "type": "calendar_event",
+    "path": "events/5.6.md",
+    "fields": {
+      "id": "5.6",
+      "title": "All Hands",
+      "description": "Fill and text as Tailwind classes",
+      "start": "2026-10-14T09:00:00.000Z",
+      "end": "2026-10-14T10:00:00.000Z",
+      "backgroundColor": "bg-violet-500",
+      "color": "text-violet-50",
+      "createdAt": "2026-10-11T00:00:00.000Z",
+      "updatedAt": "2026-10-11T00:00:00.000Z"
+    }
+  },
+  {
+    "type": "calendar_event",
+    "path": "events/5.7.md",
+    "fields": {
+      "id": "5.7",
+      "title": "Onboarding Session",
+      "description": "Fill and text as CSS values",
+      "start": "2026-10-14T11:00:00.000Z",
+      "end": "2026-10-14T12:00:00.000Z",
+      "backgroundColor": "#0ea5e9",
+      "color": "#08203a",
+      "createdAt": "2026-10-11T00:00:00.000Z",
+      "updatedAt": "2026-10-11T00:00:00.000Z"
+    }
+  },
+  {
+    "type": "calendar_event",
+    "path": "events/5.8.md",
+    "fields": {
+      "id": "5.8",
+      "title": "Security Audit",
+      "description": "Mixed forms in one event",
+      "start": "2026-10-15T09:00:00.000Z",
+      "end": "2026-10-15T10:00:00.000Z",
+      "backgroundColor": "bg-emerald-500",
+      "color": "#022c22",
+      "createdAt": "2026-10-11T00:00:00.000Z",
+      "updatedAt": "2026-10-11T00:00:00.000Z"
+    }
+  },
+  {
+    "type": "calendar_event",
+    "path": "events/5.9.md",
+    "fields": {
+      "id": "5.9",
+      "title": "Roadmap Sync",
+      "description": "Mixed forms the other way round",
+      "start": "2026-10-15T11:00:00.000Z",
+      "end": "2026-10-15T12:00:00.000Z",
+      "backgroundColor": "#1e293b",
+      "color": "text-amber-300",
+      "createdAt": "2026-10-11T00:00:00.000Z",
+      "updatedAt": "2026-10-11T00:00:00.000Z"
+    }
+  },
+  {
+    "type": "calendar_event",
+    "path": "events/6.md",
+    "fields": {
+      "id": "6",
+      "title": "Design Sprint",
+      "description": "Product design workshop",
+      "start": "2026-10-12T09:00:00.000Z",
+      "end": "2026-10-16T17:00:00.000Z",
+      "color": "bg-pink-100 text-pink-800",
+      "createdAt": "2026-10-11T00:00:00.000Z",
+      "updatedAt": "2026-10-11T00:00:00.000Z"
+    }
+  },
+  {
+    "type": "calendar_event",
+    "path": "events/8.md",
+    "fields": {
+      "id": "8",
+      "title": "Marketing Campaign",
+      "description": "Q2 product launch campaign",
+      "start": "2026-10-15T00:00:00.000Z",
+      "end": "2026-10-29T23:59:00.000Z",
+      "color": "bg-amber-100 text-amber-800",
+      "createdAt": "2026-10-11T00:00:00.000Z",
+      "updatedAt": "2026-10-11T00:00:00.000Z"
+    }
+  },
+  {
+    "type": "calendar_event",
+    "path": "events/9.md",
+    "fields": {
+      "id": "9",
+      "title": "Product Development",
+      "description": "New feature development cycle",
+      "start": "2026-10-20T00:00:00.000Z",
+      "end": "2026-12-19T23:59:00.000Z",
+      "color": "bg-emerald-100 text-emerald-800",
+      "createdAt": "2026-10-11T00:00:00.000Z",
+      "updatedAt": "2026-10-11T00:00:00.000Z"
+    }
+  },
+  {
+    "type": "calendar_event",
+    "path": "events/10.md",
+    "fields": {
+      "id": "10",
+      "title": "Annual Leave",
+      "description": "Summer vacation",
+      "start": "2026-10-25T00:00:00.000Z",
+      "end": "2026-11-08T23:59:00.000Z",
+      "color": "bg-sky-100 text-sky-800",
+      "createdAt": "2026-10-11T00:00:00.000Z",
+      "updatedAt": "2026-10-11T00:00:00.000Z"
+    }
+  },
+  {
+    "type": "calendar_event",
+    "path": "events/11.md",
+    "fields": {
+      "id": "11",
+      "title": "Conference",
+      "description": "Industry tech conference",
+      "start": "2026-09-21T09:00:00.000Z",
+      "end": "2026-09-23T17:00:00.000Z",
+      "color": "bg-violet-100 text-violet-800",
+      "createdAt": "2026-10-11T00:00:00.000Z",
+      "updatedAt": "2026-10-11T00:00:00.000Z"
+    }
+  },
+  {
+    "type": "calendar_event",
+    "path": "events/12.md",
+    "fields": {
+      "id": "12",
+      "title": "Research Project",
+      "description": "Market research and analysis",
+      "start": "2026-09-26T00:00:00.000Z",
+      "end": "2026-10-10T23:59:00.000Z",
+      "color": "bg-rose-100 text-rose-800",
+      "createdAt": "2026-10-11T00:00:00.000Z",
+      "updatedAt": "2026-10-11T00:00:00.000Z"
+    }
+  },
+  {
+    "type": "calendar_event",
+    "path": "events/15.md",
+    "fields": {
+      "id": "15",
+      "title": "Conference",
+      "description": "Annual industry conference",
+      "start": "2026-10-07T00:00:00.000Z",
+      "end": "2026-10-09T23:59:59.999Z",
+      "color": "bg-purple-100 text-purple-800",
+      "allDay": true,
+      "createdAt": "2026-10-11T00:00:00.000Z",
+      "updatedAt": "2026-10-11T00:00:00.000Z"
+    }
+  },
+  {
+    "type": "calendar_event",
+    "path": "events/16.md",
+    "fields": {
+      "id": "16",
+      "title": "Birthday Celebration",
+      "description": "Celebrate team member birthday",
+      "start": "2026-10-18T00:00:00.000Z",
+      "end": "2026-10-18T23:59:59.999Z",
+      "color": "bg-yellow-100 text-yellow-800",
+      "allDay": true,
+      "createdAt": "2026-10-11T00:00:00.000Z",
+      "updatedAt": "2026-10-11T00:00:00.000Z"
+    }
+  },
+  {
+    "type": "calendar_event",
+    "path": "events/17.md",
+    "fields": {
+      "id": "17",
+      "title": "Anniversary",
+      "description": "Work anniversary celebration",
+      "start": "2026-10-22T00:00:00.000Z",
+      "end": "2026-10-22T23:59:59.999Z",
+      "color": "bg-blue-100 text-blue-800",
+      "allDay": true,
+      "createdAt": "2026-10-11T00:00:00.000Z",
+      "updatedAt": "2026-10-11T00:00:00.000Z"
+    }
+  },
+  {
+    "type": "calendar_event",
+    "path": "events/18.md",
+    "fields": {
+      "id": "18",
+      "title": "Hackathon",
+      "description": "48-hour coding challenge",
+      "start": "2026-10-21T00:00:00.000Z",
+      "end": "2026-10-25T23:59:59.999Z",
+      "color": "bg-green-100 text-green-800",
+      "allDay": true,
+      "createdAt": "2026-10-11T00:00:00.000Z",
+      "updatedAt": "2026-10-11T00:00:00.000Z"
+    }
+  },
+  {
+    "type": "calendar_event",
+    "path": "events/19.md",
+    "fields": {
+      "id": "19",
+      "title": "Workshop",
+      "description": "Hands-on training workshop",
+      "start": "2026-10-27T00:00:00.000Z",
+      "end": "2026-10-30T23:59:59.999Z",
+      "color": "bg-red-100 text-red-800",
+      "allDay": true,
+      "createdAt": "2026-10-11T00:00:00.000Z",
+      "updatedAt": "2026-10-11T00:00:00.000Z"
+    }
+  },
+  {
+    "type": "calendar_event",
+    "path": "events/20.md",
+    "fields": {
+      "id": "20",
+      "title": "Daily Standup",
+      "description": "Daily team sync meeting",
+      "start": "2026-10-01T10:00:00.000Z",
+      "end": "2026-10-01T11:00:00.000Z",
+      "color": "bg-cyan-100 text-cyan-800",
+      "rrule": {
+        "freq": 2,
+        "interval": 1,
+        "byweekday": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "dtstart": "2026-10-01T10:00:00.000Z"
+      },
+      "exdates": [],
+      "createdAt": "2026-10-11T00:00:00.000Z",
+      "updatedAt": "2026-10-11T00:00:00.000Z"
+    }
+  },
+  {
+    "type": "calendar_event",
+    "path": "events/21.md",
+    "fields": {
+      "id": "21",
+      "title": "PST Evening Sync (UTC Boundary)",
+      "description": "Recurring Wednesday at 4 PM PST. This event crosses the UTC day boundary (00:00 UTC) but stays on Wednesday thanks to Floating Time.",
+      "start": "2026-10-07T16:00:00.000Z",
+      "end": "2026-10-07T17:00:00.000Z",
+      "color": "bg-indigo-200 text-indigo-900",
+      "rrule": {
+        "freq": 2,
+        "interval": 1,
+        "byweekday": [
+          2
+        ],
+        "dtstart": "2026-10-07T16:00:00.000Z"
+      },
+      "exdates": [],
+      "createdAt": "2026-10-11T00:00:00.000Z",
+      "updatedAt": "2026-10-11T00:00:00.000Z"
+    }
+  },
+  {
+    "type": "calendar_event",
+    "path": "events/22.md",
+    "fields": {
+      "id": "22",
+      "title": "Morning Yoga Class",
+      "start": "2026-10-11T10:00:00.000Z",
+      "end": "2026-10-11T12:00:00.000Z",
+      "color": "bg-cyan-100 text-cyan-800",
+      "createdAt": "2026-10-11T00:00:00.000Z",
+      "updatedAt": "2026-10-11T00:00:00.000Z"
+    }
+  }
+]

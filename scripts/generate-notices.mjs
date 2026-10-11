@@ -26,10 +26,10 @@ for (const [relative, entry] of Object.entries(lock.packages)) {
   assert(!/^(UNLICENSED|Not declared)$/.test(license), `${pkg.name}: license not available`);
 }
 for (const item of supplements) {const text=fs.readFileSync(path.join(root,'public',item.file),'utf8');assert.equal(createHash('sha256').update(text).digest('hex'),item.sha256);notices.push(`\n${'='.repeat(72)}\n${item.name} ${item.version}\nSource: ${item.source}\nVerified upstream grant reused from the existing audited port. For react-remove-scroll-bar 2.3.8, the package declares MIT but omits its root license; its npm gitHead b3b1287aad81def2e2ae707274b74531b61ddbaf is unavailable publicly, so the linked repository commit is not claimed to be its publication commit.\n\n${text}`);}
-fs.mkdirSync(path.join(root, 'public'), {recursive:true}); fs.mkdirSync(path.join(root, 'reports'), {recursive:true});
+fs.mkdirSync(path.join(root, 'public'), {recursive:true}); fs.mkdirSync(path.join(root, '.build'), {recursive:true});
 const text = notices.join('\n')+'\n';
 if (process.argv.includes('--check')) assert.equal(fs.readFileSync(path.join(root, 'public/THIRD_PARTY_NOTICES.txt'), 'utf8'), text);
 else fs.writeFileSync(path.join(root, 'public/THIRD_PARTY_NOTICES.txt'), text);
-fs.writeFileSync(path.join(root, 'reports/license-audit.json'), JSON.stringify({donorCommit:'04e34d17cb6db097c034bba04655353bcc38fe7c', donorLicenseSha256:createHash('sha256').update(donor).digest('hex'), packages, supplements, missing}, null, 2)+'\n');
+fs.writeFileSync(path.join(root, '.build/license-audit.json'), JSON.stringify({donorCommit:'04e34d17cb6db097c034bba04655353bcc38fe7c', donorLicenseSha256:createHash('sha256').update(donor).digest('hex'), packages, supplements, missing}, null, 2)+'\n');
 console.log(JSON.stringify({packages:packages.length, missing}));
 assert.equal(missing.length, 0, 'Production dependency license text is missing');

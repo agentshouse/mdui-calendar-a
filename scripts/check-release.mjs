@@ -21,6 +21,6 @@ for(const file of output){const text=fs.readFileSync(file,'utf8');
 for(const file of files(path.join(root,'src'))) {const source=fs.readFileSync(file,'utf8');assert(!/localStorage|sessionStorage|connectMdRuntime|serveMdRuntime|createMemoryAdapter|new\s+WebSocket|\bfetch\s*\(/.test(source),`Forbidden production API ${file}`);}
 for(const name of ['LICENSE.txt','THIRD_PARTY_NOTICES.txt'])asset('./'+name,path.join(dist,'index.html'));
 const schema=verify(fs.readFileSync(path.join(root,'schema.yaml'),'utf8'));assert.equal(schema.verdict,'accept',JSON.stringify(schema));
-const library=Object.fromEntries(files(path.join(root,'samples/events')).map(file=>['events/'+path.basename(file),fs.readFileSync(file,'utf8')]));
+const library=Object.fromEntries(files(path.join(root,'tests/support/samples/events')).map(file=>['events/'+path.basename(file),fs.readFileSync(file,'utf8')]));
 const valid=validate(library,undefined,schema.model);assert.equal(valid.verdict,'accept',JSON.stringify(valid));assert.equal(Object.keys(library).length,23);
 console.log(JSON.stringify({result:'passed',files:output.length,bytes,mebibytes:+(bytes/1024/1024).toFixed(3),schema:'accepted',sampleDocuments:23,references:[...refs],browser:'Hosted desktop/360px unverified',network:'Static audit only; hosted network capture unverified'}));

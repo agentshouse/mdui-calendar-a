@@ -12,9 +12,9 @@ const root = process.cwd();
 const reference = '2026-10-11T00:00:00.000Z';
 const read = (relative: string) => fs.readFileSync(path.join(root, relative), 'utf8');
 const sha256 = (value: string) => crypto.createHash('sha256').update(value).digest('hex');
-const events = JSON.parse(read('samples/events.json')) as Record<string, unknown>[];
-const manifest = JSON.parse(read('samples/PROVENANCE.json'));
-const raw = read('samples/donor/seed.ts');
+const events = JSON.parse(read('tests/support/samples/events.json')) as Record<string, unknown>[];
+const manifest = JSON.parse(read('tests/support/samples/PROVENANCE.json'));
+const raw = read('tests/support/samples/donor/seed.ts');
 const schema = verify(read('schema.yaml'));
 
 /** Independent reference implementation for just the donor's UTC expressions.
@@ -84,12 +84,12 @@ describe('complete licensed donor seed', () => {
     expect(manifest.commit).toBe('04e34d17cb6db097c034bba04655353bcc38fe7c');
     expect(sha256(raw)).toBe('f8ea1a952d2ca285c5e7849af3bd156699b7fece5702c34d9a99f57e71255233');
     expect(manifest.source_sha256).toBe(sha256(raw));
-    expect(sha256(read('samples/donor/LICENSE'))).toBe('a0196423e884b263ca15b4ea52983f40bd0da3c193e0a66485e8c74075a9c286');
-    expect(read('LICENSE')).toBe(read('samples/donor/LICENSE'));
+    expect(sha256(read('tests/support/samples/donor/LICENSE'))).toBe('a0196423e884b263ca15b4ea52983f40bd0da3c193e0a66485e8c74075a9c286');
+    expect(read('LICENSE')).toBe(read('tests/support/samples/donor/LICENSE'));
     expect(manifest.license_sha256).toBe(sha256(read('LICENSE')));
     expect(manifest.copyright).toBe('Copyright (c) 2025 Sujeet Kc');
     expect(manifest.license).toBe('MIT');
-    expect(manifest.normalized_events_sha256).toBe(sha256(read('samples/events.json')));
+    expect(manifest.normalized_events_sha256).toBe(sha256(read('tests/support/samples/events.json')));
     expect(manifest.reference_instant).toBe(reference);
     expect(manifest.timezone).toBe('UTC');
   });
@@ -141,12 +141,12 @@ describe('complete licensed donor seed', () => {
   test('all Markdown documents and test harness fields round-trip through the real Room model', () => {
     expect(schema.verdict).toBe('accept');
     if (schema.verdict !== 'accept') return;
-    const names = fs.readdirSync(path.join(root, 'samples/events')).filter(name => name.endsWith('.md'));
+    const names = fs.readdirSync(path.join(root, 'tests/support/samples/events')).filter(name => name.endsWith('.md'));
     expect(names.sort()).toEqual(events.map(event => `${event.id}.md`).sort());
-    const library: Record<string, string> = {'calendar-readme.md': read('samples/calendar-readme.md')};
+    const library: Record<string, string> = {'calendar-readme.md': read('tests/support/samples/calendar-readme.md')};
     for (const event of events) {
       const relative = `events/${event.id}.md`;
-      library[relative] = read(`samples/${relative}`);
+      library[relative] = read(`tests/support/samples/${relative}`);
       const parsed = parse(library[relative]);
       expect(parsed.ok).toBe(true);
       if (!parsed.ok) continue;
@@ -154,7 +154,7 @@ describe('complete licensed donor seed', () => {
       expect(parsed.document.fields).toEqual({type: 'calendar_event', ...event});
     }
     expect(validate(library, undefined, schema.model)).toEqual({verdict: 'accept'});
-    expect(JSON.parse(read('samples/sample-documents.json'))).toEqual(events.map(fields => ({
+    expect(JSON.parse(read('tests/support/samples/sample-documents.json'))).toEqual(events.map(fields => ({
       type: 'calendar_event', path: `events/${fields.id}.md`, fields,
     })));
   });
@@ -183,7 +183,7 @@ describe('complete licensed donor seed', () => {
 
   test('generation is host-timezone-independent and emits create-only complete publication payloads', () => {
     const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'calendar-seed-'));
-    const before = read('samples/events.json');
+    const before = read('tests/support/samples/events.json');
     try {
       const payloadPath = path.join(temporary, 'payload.json');
       execFileSync(process.execPath, ['scripts/build-demo.mjs'], {
@@ -191,16 +191,16 @@ describe('complete licensed donor seed', () => {
         env: {...process.env, TZ: 'Pacific/Honolulu', CALENDAR_PAYLOAD_PATH: payloadPath},
         encoding: 'utf8',
       });
-      expect(read('samples/events.json')).toBe(before);
+      expect(read('tests/support/samples/events.json')).toBe(before);
       const payload = JSON.parse(fs.readFileSync(payloadPath, 'utf8'));
       expect(payload.room_handle_required).toBe(true);
       expect(payload.changes).toHaveLength(24);
       expect(new Set(payload.changes.map((change: {path: string}) => change.path)).size).toBe(24);
       for (let index = 0; index < events.length; index++) {
         const relative = `events/${events[index].id}.md`;
-        expect(payload.changes[index]).toEqual({op: 'create', path: `/rooms/calendar-port/${relative}`, content: read(`samples/${relative}`)});
+        expect(payload.changes[index]).toEqual({op: 'create', path: `/rooms/calendar-port/${relative}`, content: read(`tests/support/samples/${relative}`)});
       }
-      expect(payload.changes.at(-1)).toEqual({op: 'create', path: '/rooms/calendar-port/calendar-readme.md', content: read('samples/calendar-readme.md')});
+      expect(payload.changes.at(-1)).toEqual({op: 'create', path: '/rooms/calendar-port/calendar-readme.md', content: read('tests/support/samples/calendar-readme.md')});
     } finally { fs.rmSync(temporary, {recursive: true, force: true}); }
   });
 });
