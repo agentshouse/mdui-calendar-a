@@ -1,7 +1,9 @@
 import {assertQueryPointers} from './query-pointers';
 import {expect, vi} from 'vitest';
-import type {MdRuntimeClient} from '@agentshouse/mdruntime/client';
+import type {HouseBridge} from '@agentshouse/app-bridge';
 import type {CalendarEvent} from '../src/data/house';
+
+type MdRuntimeClient = Awaited<HouseBridge['runtime']>;
 
 // A strict, local test double of the published asynchronous client boundary.
 // This is not a Runtime implementation or evidence of hosted Provider acceptance.

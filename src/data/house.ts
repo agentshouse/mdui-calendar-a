@@ -1,7 +1,7 @@
-import {connectHouseBridge} from '@agentshouse/app-bridge';
+import {houseBridge} from '@agentshouse/app-bridge';
 import {z} from 'zod';
 
-type Runtime = Awaited<ReturnType<typeof connectHouseBridge>['runtime']>;
+type Runtime = Awaited<ReturnType<typeof houseBridge>['runtime']>;
 type Parts = Parameters<Runtime['roomDraft']['write']>[3];
 type Draft = NonNullable<Awaited<ReturnType<Runtime['roomDraft']['read']>>>;
 type Document = {room: string; path: string; type?: string; fields?: Readonly<Record<string, unknown>>; markdown?: string};
@@ -24,7 +24,7 @@ const reasonText = (reason: unknown) => reason instanceof Error ? reason.message
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 let connection: Promise<Runtime> | undefined;
 export function houseRuntime() {
-  connection ??= (async () => {const bridge = connectHouseBridge(); bridge.setTab({title: 'Calendar'}); return bridge.runtime;})();
+  connection ??= (async () => {const bridge = houseBridge(); bridge.setTab({title: 'Calendar'}); return bridge.runtime;})();
   return connection;
 }
 
