@@ -16,7 +16,7 @@ async function edit(store: HouseDataStore, initial?: CalendarEvent, proposed?: P
   const session = await store.openEditor(initial, proposed); sessions.push(session); return session;
 }
 function fields(boundary: Boundary, path = eventPath(E1)) {return boundary.drafts.get(path)?.parts.fields;}
-const refusal = {reason: 'revoked-authorization', reauthorizationOffered: true, refusal: null} satisfies ConnectionRefusal;
+const refusal = {code: 'revoked-authorization', retryable: false, reauthorizationOffered: true, refusal: null} satisfies ConnectionRefusal;
 afterEach(() => {sessions.splice(0).forEach(session => session.close()); stores.splice(0).forEach(store => store.dispose()); vi.restoreAllMocks();});
 
 describe('calendar published-client boundary and live binding', () => {
@@ -251,7 +251,7 @@ describe('Calendar connection-refusal recovery', () => {
   it('keeps returned-draft attention and native rejection visible after connection recovery', async () => {
     const {boundary, store} = await setup(); const session = await edit(store, store.snapshot().events[0]);
     await session.write({title: 'Returned local title'});
-    const returned = {kind: 'rejected', code: 'calendar-validation', fields: {title: 'Review this event'}} satisfies NonNullable<Draft['returned']>;
+    const returned = {kind: 'rejected', retryable: false, code: 'calendar-validation', fields: {title: 'Review this event'}} satisfies NonNullable<Draft['returned']>;
     const held = {...boundary.drafts.get(session.path)!, returned};
     boundary.drafts.set(session.path, held); boundary.publish('room-drafts', [held]);
     boundary.publish('sync-status', sync({attentionRequired: [{room: ROOM, path: session.path, returned}]}));

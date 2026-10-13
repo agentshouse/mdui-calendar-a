@@ -150,35 +150,35 @@ export class Boundary {
     selections.forEach(item => expect(Object.keys(item).sort()).toEqual(['path', 'revision']));
     if (this.saveGate) await this.saveGate;
     this.beforeSave?.();
-    if (this.nextSaveRule) return {outcome: 'refused', rule: this.nextSaveRule};
+    if (this.nextSaveRule) return {outcome: 'refused', code: this.nextSaveRule, retryable: false};
     const next = new Map([...this.docs].map(([path, doc]) => [path, clone(doc)]));
     for (const selection of selections) {
       const draft = this.drafts.get(selection.path);
-      if (!draft || draft.revision !== selection.revision) return {outcome: 'refused', rule: 'stale'};
+      if (!draft || draft.revision !== selection.revision) return {outcome: 'refused', code: 'stale', retryable: false};
       let current = next.get(selection.path);
       if (draft.parts.removal) {
-        if (!current || current.markdown !== draft.parts.removal.base) return {outcome: 'refused', rule: 'changed-underneath'};
+        if (!current || current.markdown !== draft.parts.removal.base) return {outcome: 'refused', code: 'changed-underneath', retryable: false};
         next.delete(selection.path); continue;
       }
       if (draft.parts.creation) {
-        if (current) return {outcome: 'refused', rule: 'changed-underneath'};
+        if (current) return {outcome: 'refused', code: 'changed-underneath', retryable: false};
         if (!('type' in draft.parts.creation)) throw new Error('Unexpected raw-markdown creation');
         const {type, fields, sections} = draft.parts.creation;
         current = {room: ROOM, path: selection.path, type, fields: clone({...fields}), sections: clone({...sections}), markdown: ''};
         next.set(selection.path, current);
       }
-      if (!current) return {outcome: 'refused', rule: 'changed-underneath'};
+      if (!current) return {outcome: 'refused', code: 'changed-underneath', retryable: false};
       if (draft.parts.fields) for (const [key, change] of Object.entries(draft.parts.fields)) {
         const base = key in current.fields ? {value: current.fields[key]} : null;
-        if (!draft.parts.creation && !same(base, change.base)) return {outcome: 'refused', rule: 'changed-underneath'};
+        if (!draft.parts.creation && !same(base, change.base)) return {outcome: 'refused', code: 'changed-underneath', retryable: false};
         current.fields[key] = clone(change.value);
       }
       if (draft.parts.sections) for (const [key, change] of Object.entries(draft.parts.sections)) {
-        if ((current.sections?.[key] ?? '') !== change.base) return {outcome: 'refused', rule: 'changed-underneath'};
+        if ((current.sections?.[key] ?? '') !== change.base) return {outcome: 'refused', code: 'changed-underneath', retryable: false};
         current.sections = {...current.sections, [key]: change.value};
       }
       if (draft.parts.preamble) {
-        if ((current.preamble ?? '') !== draft.parts.preamble.base) return {outcome: 'refused', rule: 'changed-underneath'};
+        if ((current.preamble ?? '') !== draft.parts.preamble.base) return {outcome: 'refused', code: 'changed-underneath', retryable: false};
         current.preamble = draft.parts.preamble.value;
       }
       current.markdown = markdown(current.type, current.fields, current.sections, current.preamble);
@@ -187,7 +187,7 @@ export class Boundary {
     for (const doc of next.values()) {
       expect(doc.type).toBe('calendar_event');
       expect(doc.path).toBe(eventPath(String(doc.fields.id)));
-      if (typeof doc.fields.title !== 'string' || !doc.fields.title.trim() || !Number.isFinite(Date.parse(String(doc.fields.start))) || !Number.isFinite(Date.parse(String(doc.fields.end))) || Date.parse(String(doc.fields.end)) < Date.parse(String(doc.fields.start))) return {outcome: 'refused', rule: 'calendar-validation'};
+      if (typeof doc.fields.title !== 'string' || !doc.fields.title.trim() || !Number.isFinite(Date.parse(String(doc.fields.start))) || !Number.isFinite(Date.parse(String(doc.fields.end))) || Date.parse(String(doc.fields.end)) < Date.parse(String(doc.fields.start))) return {outcome: 'refused', code: 'calendar-validation', retryable: false};
     }
     const identifier = `local-batch-${this.saves.length}`;
     this.queue.push({identifier, room, drafts: selections.map(selection => clone(this.drafts.get(selection.path)!))});

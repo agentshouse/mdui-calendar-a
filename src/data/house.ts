@@ -95,7 +95,7 @@ export class HouseDataStore {
       await Promise.all([
         watch(md.observe('service-mode'), value => this.emit({halted: value === 'write-halted'})),
         watch(md.observe('connection-refusal'), value => {
-          const current = value ? `House connection refused: ${value.reason}` : null;
+          const current = value ? `House connection refused: ${value.code}` : null;
           if (current === this.connectionRefusal) return;
           this.connectionRefusal = current;
           // Only the Runtime's explicit clearance can remove an access refusal.
@@ -238,7 +238,7 @@ export class HouseDataStore {
     try {
       // A provider write halt is informational: native Save still queues locally.
       const answer = await this.md!.save(room, selections);
-      if (answer.outcome !== 'saved') throw new Error(`House refused Save (${answer.outcome}${'rule' in answer ? `: ${answer.rule}` : ''}). Your Room drafts are retained.`);
+      if (answer.outcome !== 'saved') throw new Error(`House refused Save (${answer.outcome}${'code' in answer ? `: ${answer.code}` : ''}). Your Room drafts are retained.`);
       if (this.room === room && this.ready) this.read(await this.md!.query({...calendarQuery, rooms: [room]}));
     } finally {this.emit({busy: false});}
   }
