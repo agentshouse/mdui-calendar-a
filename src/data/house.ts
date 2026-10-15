@@ -65,9 +65,9 @@ export class HouseDataStore {
       if (this.disposed) return;
       const rooms = await md.observe('rooms'); const sync = await md.observe('sync-status');
       if (this.disposed) {rooms.close(); sync.close(); return;}
-      let query: {current(): {documents: readonly Document[]}; close(): void} | undefined;
+      let query: {current(): {documents: readonly Document[]} | {pending: readonly unknown[]}; close(): void} | undefined;
       let stopQuery: (() => void) | undefined; let loading: Promise<void> | undefined;
-      const render = () => {if (this.ready && query && !this.disposed) try {this.read(query.current());} catch (error) {this.emit({loading: false, error: this.blocker() ?? reasonText(error)});}};
+      const render = () => {if (this.ready && query && !this.disposed) try {const result=query.current(); if ('pending' in result) {this.emit({loading: true, error: this.blocker()}); return;} this.read(result);} catch (error) {this.emit({loading: false, error: this.blocker() ?? reasonText(error)});}};
       const bindings = () => {
         if (this.disposed) return;
         const current = rooms.current(); const status = sync.current();
