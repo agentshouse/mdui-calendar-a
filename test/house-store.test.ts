@@ -46,6 +46,12 @@ describe('calendar published-client boundary and live binding', () => {
     expect(boundary.query).not.toHaveBeenCalled(); expect(boundary.saves).toEqual([]);
   });
 
+  it('keeps completed events while the observed query is pending', async () => {
+    const {boundary, store} = await setup();
+    boundary.publish('query', {pending: [{room: ROOM, awaits: 'index'}]});
+    expect(store.snapshot()).toMatchObject({events: [expect.objectContaining({id: E1})], loading: true, error: null});
+  });
+
   it('orders events by start instant and then path, regardless of identity format', async () => {
     const early = {...event('z-early'), start: '2026-10-12T09:00:00.000+02:00'};
     const tied = {...event('a-tied'), start: '2026-10-12T07:00:00.000Z'};
